@@ -135,6 +135,9 @@ namespace ItSD_project_wpf_test
 			second = new Vector(Point.Origin, new Point(0, -250));
 			subtraction = second - first;
 			Assert.AreEqual(subtraction, new Vector(Point.Origin, new Point(0, -21)),"Subtraction of two negative vectors");
+			first = new Vector(Point.Origin, new Point(-66, 30));
+			second = first.Projection(new Line(Vector.VersorY.Beginning, Vector.VersorY.Ending));
+			Assert.AreEqual(first - second, new Vector(Point.Origin,new Point(-66,0)));
 		}
 		[TestMethod]
 		public void equality_test()
@@ -223,6 +226,14 @@ namespace ItSD_project_wpf_test
 			Assert.AreEqual(any.Projection(oy), new Vector(Point.Origin, new Point(0, any.Ending.Y)));
 			Assert.AreEqual(x.Projection(xy), new Vector(Point.Origin, new Point(1, 1)).Normalized() * Math.Sqrt(0.5));
 			Assert.AreEqual(y.Projection(xy), new Vector(Point.Origin, new Point(1, 1)).Normalized() * Math.Sqrt(0.5));
+			Vector v = new Vector(Point.Origin, new Point(205,-1));
+			Assert.AreEqual(v.Projection(oy), Vector.VersorY * (-1));
+			v = new Vector(Point.Origin, new Point(-66, 30));
+			Assert.AreEqual(v.Projection(oy), Vector.VersorY * (30));
+			
+			Vector first = new Vector(Point.Origin, new Point(-66, 30));
+			Vector second = first.Projection(new Line(new Point(0,500), new Point(0,250)));
+			Assert.AreEqual(second, new Vector(Point.Origin, new Point(0,30)));
 		}
 		[TestMethod]
 		public void zero_vector_test()

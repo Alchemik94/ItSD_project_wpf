@@ -52,11 +52,18 @@ namespace ItSD_project_wpf
 
 		private void Refresh(object sender, EventArgs e)
 		{
-			_displayCanvas.Dispatcher.Invoke((Action)(() =>
+			try
 			{
-				Canvas.SetBottom(_ellipse, DisplayedBall.Position.Y - DisplayedBall.Radius);
-				Canvas.SetLeft(_ellipse, DisplayedBall.Position.X - DisplayedBall.Radius);
-			}));
+				_displayCanvas.Dispatcher.Invoke(() =>
+				{
+					Canvas.SetBottom(_ellipse, DisplayedBall.Position.Y - DisplayedBall.Radius);
+					Canvas.SetLeft(_ellipse, DisplayedBall.Position.X - DisplayedBall.Radius);
+				});
+			}
+			catch (System.Threading.Tasks.TaskCanceledException)
+			{
+				//Program just got exitted, everything ok.
+			}
 		}
 
 		//Doesn't dispose the ball!

@@ -141,7 +141,9 @@ namespace ItSD_project_wpf
 			double projectionLength = Math.Sqrt(Math.Pow(originatedOnLine.Length(), 2) - Math.Pow(distanceFromEndToLine, 2));
 			projection *= projectionLength;
 			projection = projection.OriginatedAt(line.First);
-			return projection;
+			if (new Vector(projection.Ending, originatedOnLine.Ending).Length() < new Vector((projection * (-1)).Ending, originatedOnLine.Ending).Length())
+				return projection.OriginatedAt(this.Beginning);
+			else return (projection * (-1)).OriginatedAt(this.Beginning);
 		}
 		//Changes beginning point of the vector keeping it's partials of appropriate length
 		public Vector OriginatedAt(Point origin)

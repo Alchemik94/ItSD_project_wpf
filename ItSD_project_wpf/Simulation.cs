@@ -31,7 +31,7 @@ namespace ItSD_project_wpf
 					lock(_lockObj)
 					{
 						if (_gravity == null)
-							_gravity = new Vector(Point.Origin, new Point(0, -100));
+							_gravity = new Vector(Point.Origin, new Point(0, -50));
 					}
 				return _gravity;
 			}
@@ -57,7 +57,7 @@ namespace ItSD_project_wpf
 			_canvas = canvas;
 			InitializeBorders(degreesAngleOfSlipperySlope);
 			_displayers = new List<BallDisplayer>();
-			TicksPerSecond = 100;
+			TicksPerSecond = 50;
 			_balls = new List<Ball>();
 			_timer = new Timer((double)1 / (double)TicksPerSecond);
 			_timer.AutoReset = true;
@@ -103,19 +103,21 @@ namespace ItSD_project_wpf
 			{
 				var oldBalls = from balls in _balls select new Ball(balls);
 				Parallel.ForEach(_balls,ball =>
+				{
+					lock (ball)
 					{
-						lock (ball)
-						{
-							ball.RecalculateCollisions(_walls);
-							ball.RecalculateCollisions(oldBalls);
-						}
+						ball.RecalculateCollisions(oldBalls);
+						ball.RecalculateCollisions(_walls);
 					}
-					);
-				//foreach (var ball in _balls)
-				//{
-				//	ball.RecalculateCollisions(oldBalls);
-				//	ball.RecalculateCollisions(_walls);
-				//}
+				});
+				Parallel.ForEach(_balls, ball =>
+				{
+					lock (ball)
+					{
+						ball.AddExclusions(_balls);
+					}
+				});
+				Parallel.ForEach(oldBalls, ball => { ball.Dispose(); });
 			}
 		}
 
@@ -147,7 +149,7 @@ namespace ItSD_project_wpf
 			lock (_balls)
 			{
 				foreach (var singleBall in _balls)
-					if (ball.IsColliding(singleBall))
+					if (ball!=singleBall && ball.IsColliding(singleBall))
 						return true;
 			}
 			return false;

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -10,100 +11,85 @@ namespace ItSD_project_wpf
 {
 	public class ExclusionList: IDisposable
 	{
-		private HashSet<Ball> _balls;
-		private HashSet<Line> _borders;
-		private List<Timer> _waitingTimers;
-		private Timer _cleaner;
+		private ConcurrentHashSet<Ball> _balls;
+		private ConcurrentHashSet<Line> _borders;
 		
 		public ExclusionList()
 		{
-			_balls = new HashSet<Ball>();
-			_borders = new HashSet<Line>();
-			_waitingTimers = new List<Timer>();
-			_cleaner = new Timer(50);
-			_cleaner.AutoReset = true;
-			_cleaner.Elapsed += ((object sender, ElapsedEventArgs e) =>
-			{
-				lock (_waitingTimers)
-				{
-					while (_waitingTimers.Count() > 0 && _waitingTimers.First().Enabled == false)
-					{
-						_waitingTimers.ElementAt(0).Dispose();
-						_waitingTimers.RemoveAt(0);
-					}
-				}
-			});
-			_cleaner.Start();
+			disposed = false;
+			_balls = new ConcurrentHashSet<Ball>();
+			_borders = new ConcurrentHashSet<Line>();
 		}
 
 		public void Add(Ball ball, double expirationTime)
 		{
-			Timer expirationTimer = new Timer(expirationTime);
-			expirationTimer.AutoReset = false;
-			expirationTimer.Elapsed += ((object sender, ElapsedEventArgs e) =>
+			if (disposed) throw new ObjectDisposedException(this.ToString());
+			_balls.Add(ball);
+
+			new System.Threading.Thread(() =>
 			{
-				lock (_balls)
-				{
-					_balls.Remove(ball);
-				}
-			});
-			lock (_balls)
-			{
-				_balls.Add(ball);
-				expirationTimer.Start();
-			}
-			lock (_waitingTimers)
-			{
-				_waitingTimers.Add(expirationTimer);
-			}
+				System.Threading.Thread.Sleep((int)expirationTime);
+				_balls.Remove(ball);
+			}).Start();
 		}
 
 		public void Add(Line wall, double expirationTime)
 		{
-			Timer expirationTimer = new Timer(expirationTime);
-			expirationTimer.AutoReset = false;
-			expirationTimer.Elapsed += ((object sender, ElapsedEventArgs e) =>
+			if (disposed) throw new ObjectDisposedException(this.ToString());
+			_borders.Add(wall);
+
+			new System.Threading.Thread(() =>
 			{
-				lock (_borders)
-				{
-					_borders.Remove(wall);
-				}
-			});
-			lock (_borders)
-			{
-				_borders.Add(wall);
-				expirationTimer.Start();
-			}
-			lock (_waitingTimers)
-			{
-				_waitingTimers.Add(expirationTimer);
-			}
+				System.Threading.Thread.Sleep((int)expirationTime);
+				_borders.Remove(wall);
+			}).Start();
 		}
 
 		public bool Contains(Line wall)
 		{
-			lock(_borders)
-			{
-				return _borders.Contains(wall);
-			}
+			if (disposed) throw new ObjectDisposedException(this.ToString());
+			return _borders.Contains(wall);
 		}
 
 		public bool Contains(Ball ball)
 		{
-			lock(_balls)
-			{
-				return _balls.Contains(ball);
-			}
+			if (disposed) throw new ObjectDisposedException(this.ToString());
+			return _balls.Contains(ball);
 		}
 
-		public void Dispose()
+		public void Clear()
 		{
-			_cleaner.Dispose();
-			while (_waitingTimers.Count() > 0)
+			if (disposed) throw new ObjectDisposedException(this.ToString());
+			_balls.Clear();
+			_borders.Clear();
+		}
+
+		#region IDisposable
+		private bool disposed;
+		~ExclusionList()
+		{
+			Dispose(false);
+		}
+		protected void Dispose(bool disposing)
+		{
+			if(!disposed)
 			{
-				_waitingTimers.ElementAt(0).Dispose();
-				_waitingTimers.RemoveAt(0);
+				if(disposing)
+				{
+					
+				}
+				_balls.Clear();
+				_balls = null;
+				_borders.Clear();
+				_borders = null;
+				disposed = true;
 			}
 		}
+		public void Dispose()
+		{
+			Dispose(true);
+			GC.SuppressFinalize(this);
+		}
+		#endregion
 	}
 }

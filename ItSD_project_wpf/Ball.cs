@@ -56,6 +56,7 @@ namespace ItSD_project_wpf
 		#region Constructors
 		private Ball()
 		{
+			disposed = false;
 			_collisionExclusionList = new ExclusionList();
 			BallCollisionEvent += BallCollisionEventHandler;
 			WallCollisionEvent += WallCollisionEventHandler;
@@ -71,40 +72,50 @@ namespace ItSD_project_wpf
 		}
 		public Ball(Ball ball): this(ball.Position,ball.Velocity,ball.Radius,ball.Mass)
 		{
-			_collisionExclusionList = ball._collisionExclusionList;
+			
 		}
 		#endregion
 
 		#region Collisions
-		ExclusionList _collisionExclusionList;
+		private ExclusionList _collisionExclusionList;
+		private const double MaxLeavingTime = 1000000;
+		
 		#region Ball collisions
 		private EventHandler<Ball> BallCollisionEvent;
+		#region Total velocity calculation variables
+		private Vector _partialVelocity;
+		private int _numberOfCollisions;
+		private object _collisionsLockobj = new object();
+		#endregion
 		public void RecalculateCollisions(IEnumerable<Ball> otherBalls)
 		{
 			lock (this)
 			{
-				foreach (var ball in otherBalls)
+				if (disposed) throw new ObjectDisposedException(this.ToString());
+				#region Sum of partial velocities calculation
+				_partialVelocity = Vector.ZeroVector;
+				_numberOfCollisions = 0;
+				Parallel.ForEach(otherBalls, ball =>
 				{
-					if (this.IsColliding(ball) && this != ball)
+					if (this != ball && this.IsColliding(ball))
 					{
-						BallCollisionEvent(this, ball);
-						#region Time of leaving the collision area calculation
-						Vector distanceVector = new Vector(this.Position, ball.Position);
-						//If collision was catched at almost perfect time
-						//if (Vector.IsZero(distanceVector.Length() - this.Radius - ball.Radius))
-						//	continue;
-						//Else we have to calculate time of leaving
-						var tmp = new Ball(ball);
-						tmp.BallCollisionEventHandler(this, this);
-						Vector relativeVelocity = (this.Velocity + tmp.Velocity).Projection(new Line(this.Position, ball.Position));
-						double leavingTime = -((distanceVector.Length() - this.Radius - ball.Radius) / relativeVelocity.Length());
-						if (Simulation.IsZero(leavingTime)==false && leavingTime < 1000)
-							_collisionExclusionList.Add(ball, (leavingTime * (double)1000) / (double)Simulation.TicksPerSecond);
-						else
-							_collisionExclusionList.Add(ball, 1000 / Simulation.TicksPerSecond);
-						#endregion
+						_collisionExclusionList.Clear();
 					}
-				}
+				});
+				Parallel.ForEach(otherBalls,ball =>
+				{
+					if (this != ball && this.IsColliding(ball))
+					{
+						lock (_collisionsLockobj)
+							++_numberOfCollisions;
+						BallCollisionEvent(this, ball);
+					}	
+				});
+				#endregion
+				#region Change of velocity
+				if (_numberOfCollisions > 0)
+					Velocity = Velocity + _partialVelocity / _numberOfCollisions;
+				#endregion
 			}
 		}
 		public bool IsColliding(Ball other)
@@ -121,23 +132,51 @@ namespace ItSD_project_wpf
 			double constant = 2*colliding.Mass/(this.Mass+colliding.Mass);
 			constant *= (this.Velocity-colliding.Velocity).DotProduct(distanceVector);
 			constant /= distanceVector.DotProduct(distanceVector);
-			Velocity = Velocity - distanceVector * constant ;
+			lock(_partialVelocity)
+				_partialVelocity = _partialVelocity - distanceVector * constant ;
+		}
+		public void AddExclusions(IEnumerable<Ball> ballsWithRecalculatedVelocities)
+		{
+			Parallel.ForEach(ballsWithRecalculatedVelocities, ball =>
+			{
+				if (this != ball && this.IsColliding(ball))
+				{
+					#region Time of leaving the collision area calculation
+					Vector distanceVector = new Vector(this.Position, ball.Position);
+					Vector relativeVelocity = (this.Velocity - ball.Velocity).Projection(new Line(this.Position, ball.Position));
+					double leavingTime = -((distanceVector.Length() - this.Radius - ball.Radius) / relativeVelocity.Length());
+					//lock (_collisionExclusionList)
+					//{
+						if (Simulation.IsZero(leavingTime) == false && leavingTime < 1000)
+							_collisionExclusionList.Add(ball, (leavingTime * (double)1000) / (double)Simulation.TicksPerSecond + 1);
+						else if (leavingTime < 1000)
+							_collisionExclusionList.Add(ball, 1000 / Simulation.TicksPerSecond);
+						else
+							_collisionExclusionList.Add(ball,MaxLeavingTime);
+					//}
+					#endregion
+				}
+			});
 		}
 		#endregion
+		
 		#region Wall collisions
 		private EventHandler<Line> WallCollisionEvent;
 		public void RecalculateCollisions(IEnumerable<Line> walls)
 		{
 			lock (this)
 			{
+				if (disposed) throw new ObjectDisposedException(this.ToString());
 				foreach (var wall in walls)
 				{
 					if (this.IsColliding(wall))
 					{
 						WallCollisionEvent(this, wall);
+						_collisionExclusionList.Clear();
+						//necessity to be considered
 						#region Adding to exclusion list for a short time
 						//It's enough to add wall for just 1 tick, because the ball will keep its velocity relative to the wall but in the opposite direction. If there was no collision a tick ago, there will be no collision after 1 tick also.
-						_collisionExclusionList.Add(wall, 1000 / Simulation.TicksPerSecond);
+						//_collisionExclusionList.Add(wall, 1000 / Simulation.TicksPerSecond);
 						#endregion
 					}
 				}
@@ -158,6 +197,7 @@ namespace ItSD_project_wpf
 			Velocity = Velocity + incomingPartial * (-2);
 		}
 		#endregion
+		
 		#endregion
 
 		#region Moving
@@ -166,6 +206,7 @@ namespace ItSD_project_wpf
 		{
 			lock (this)
 			{
+				if (disposed) throw new ObjectDisposedException(this.ToString());
 				Velocity = Velocity + Simulation.Gravity / Simulation.TicksPerSecond;
 			}
 		}
@@ -173,13 +214,37 @@ namespace ItSD_project_wpf
 		{
 			lock (this)
 			{
+				if (disposed) throw new ObjectDisposedException(this.ToString());
 				Position = (Velocity.OriginatedAt(Position) / Simulation.TicksPerSecond).Ending;
 			}
 		}
 		#endregion
+
+		#region IDisposable
+		private bool disposed;
+		~Ball()
+		{
+			Dispose(false);
+		}
+
+		protected void Dispose(bool disposing)
+		{
+			if (!disposed)
+			{
+				if (disposing)
+				{
+					_collisionExclusionList.Dispose();
+					_collisionExclusionList = null;
+				}
+				disposed = true;
+			}
+		}
+
 		public void Dispose()
 		{
-			_collisionExclusionList.Dispose();
+			Dispose(true);
+			GC.SuppressFinalize(this);
 		}
+		#endregion
 	}
 }

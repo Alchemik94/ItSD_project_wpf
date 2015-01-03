@@ -55,6 +55,7 @@
     </ApplicationDefinition>
     <Compile Include="Ball.cs" />
     <Compile Include="BallDisplayer.cs" />
+    <Compile Include="ConcurrentHashSet.cs" />
     <Compile Include="ExclusionList.cs" />
     <Compile Include="Line.cs" />
     <Compile Include="Simulation.cs" />

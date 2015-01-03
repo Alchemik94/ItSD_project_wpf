@@ -55,8 +55,8 @@ namespace ItSD_project_wpf
 
 		private void MenuItem_Click_AddBall(object sender, RoutedEventArgs e)
 		{
-			//_simulation.AddBall(new Ball(new Point(250, 450), Vector.ZeroVector, 25, 1));
-			_simulation.AddBall(new Ball(new Point(300, 450), Vector.ZeroVector, 25, 1));
+			_simulation.AddBall(new Ball(new Point(250, 450), Vector.ZeroVector, 25, 1));
+			//_simulation.AddBall(new Ball(new Point(300, 450), Vector.ZeroVector, 25, 1));
 		}
 	}
 }
