@@ -9,7 +9,7 @@ using System.Windows.Media;
 
 namespace ItSD_project_wpf
 {
-	class Simulation
+	class Simulation: IDisposable
 	{
 		#region Approximate calculations
 		private const double epsilon = 0.001;
@@ -101,7 +101,7 @@ namespace ItSD_project_wpf
 		{
 			lock (_balls)
 			{
-				var oldBalls = from balls in _balls select new Ball(balls);
+				List<Ball> oldBalls = (from balls in _balls select new Ball(balls)).ToList();
 				Parallel.ForEach(_balls,ball =>
 				{
 					lock (ball)
@@ -117,7 +117,10 @@ namespace ItSD_project_wpf
 						ball.AddExclusions(_balls);
 					}
 				});
-				Parallel.ForEach(oldBalls, ball => { ball.Dispose(); });
+				Parallel.ForEach(oldBalls, ball =>
+				{
+					ball.Dispose();
+				});
 			}
 		}
 
@@ -174,6 +177,27 @@ namespace ItSD_project_wpf
 		public void Stop()
 		{
 			_timer.Stop();
+		}
+		#endregion
+
+		#region Dispose
+		public void Dispose()
+		{
+			Dispose(true);
+			GC.SuppressFinalize(this);
+		}
+		protected virtual void Dispose(bool disposing)
+		{
+			if (disposing)
+				Parallel.ForEach(_balls, ball =>
+				{
+					if (ball != null)
+						ball.Dispose();
+				});
+		}
+		~Simulation()
+		{
+			Dispose(false);
 		}
 		#endregion
 	}

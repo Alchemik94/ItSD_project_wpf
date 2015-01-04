@@ -64,6 +64,10 @@ namespace ItSD_project_wpf_test
 			Assert.AreNotSame(another.Ending, vector.Ending);
 			Assert.AreNotSame(another.Beginning, vector.Beginning);
 			#endregion
+			vector = Vector.ZeroVector;
+			vector = vector - new Vector(Point.Origin,new Point(0,-50)) * (-0.4);
+			Assert.AreEqual(-20, vector.Ending.Y);
+			Assert.AreEqual(0, vector.Ending.X);
 		}
 		#endregion
 		#region Basic vector operations tests
@@ -164,6 +168,10 @@ namespace ItSD_project_wpf_test
 			Vector second = new Vector(Point.Origin, new Point(-1, -3));
 			Assert.AreEqual(first.DotProduct(second), second.DotProduct(first));
 			Assert.AreEqual(first.DotProduct(second),-7,EPS);
+			first = new Vector(Point.Origin, new Point(5, -10));
+			second = first * (-1);
+			Assert.AreEqual(-1000, (first - second).DotProduct(new Vector(Point.Origin, new Point(0, 50))));
+			Assert.AreEqual(2500, (new Vector(Point.Origin, new Point(0, 50))).DotProduct(new Vector(Point.Origin, new Point(0, 50))));
 		}
 		[TestMethod]
 		public void cross_product_test()

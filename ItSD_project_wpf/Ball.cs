@@ -56,7 +56,6 @@ namespace ItSD_project_wpf
 		#region Constructors
 		private Ball()
 		{
-			disposed = false;
 			_collisionExclusionList = new ExclusionList();
 			BallCollisionEvent += BallCollisionEventHandler;
 			WallCollisionEvent += WallCollisionEventHandler;
@@ -70,14 +69,14 @@ namespace ItSD_project_wpf
 			Radius = radius;
 			Mass = mass;
 		}
-		public Ball(Ball ball): this(ball.Position,ball.Velocity,ball.Radius,ball.Mass)
+		public Ball(Ball ball): this(new Point(ball.Position),new Vector(ball.Velocity),ball.Radius,ball.Mass)
 		{
 			
 		}
 		#endregion
 
 		#region Collisions
-		private ExclusionList _collisionExclusionList;
+		private volatile ExclusionList _collisionExclusionList;
 		private const double MaxLeavingTime = 1000000;
 		
 		#region Ball collisions
@@ -89,9 +88,9 @@ namespace ItSD_project_wpf
 		#endregion
 		public void RecalculateCollisions(IEnumerable<Ball> otherBalls)
 		{
+			if (disposed) throw new ObjectDisposedException(this.ToString());
 			lock (this)
 			{
-				if (disposed) throw new ObjectDisposedException(this.ToString());
 				#region Sum of partial velocities calculation
 				_partialVelocity = Vector.ZeroVector;
 				_numberOfCollisions = 0;
@@ -114,12 +113,13 @@ namespace ItSD_project_wpf
 				#endregion
 				#region Change of velocity
 				if (_numberOfCollisions > 0)
-					Velocity = Velocity + _partialVelocity / _numberOfCollisions;
+					Velocity = Velocity + _partialVelocity / (double)_numberOfCollisions;
 				#endregion
 			}
 		}
 		public bool IsColliding(Ball other)
 		{
+			if (disposed) throw new ObjectDisposedException(this.ToString());
 			if (_collisionExclusionList.Contains(other))
 				return false;
 			if (new Vector(other.Position, this.Position).Length() <= other.Radius + this.Radius)
@@ -137,6 +137,7 @@ namespace ItSD_project_wpf
 		}
 		public void AddExclusions(IEnumerable<Ball> ballsWithRecalculatedVelocities)
 		{
+			if (disposed) throw new ObjectDisposedException(this.ToString());
 			Parallel.ForEach(ballsWithRecalculatedVelocities, ball =>
 			{
 				if (this != ball && this.IsColliding(ball))
@@ -145,15 +146,12 @@ namespace ItSD_project_wpf
 					Vector distanceVector = new Vector(this.Position, ball.Position);
 					Vector relativeVelocity = (this.Velocity - ball.Velocity).Projection(new Line(this.Position, ball.Position));
 					double leavingTime = -((distanceVector.Length() - this.Radius - ball.Radius) / relativeVelocity.Length());
-					//lock (_collisionExclusionList)
-					//{
-						if (Simulation.IsZero(leavingTime) == false && leavingTime < 1000)
-							_collisionExclusionList.Add(ball, (leavingTime * (double)1000) / (double)Simulation.TicksPerSecond + 1);
-						else if (leavingTime < 1000)
-							_collisionExclusionList.Add(ball, 1000 / Simulation.TicksPerSecond);
-						else
-							_collisionExclusionList.Add(ball,MaxLeavingTime);
-					//}
+					if (Simulation.IsZero(leavingTime) == false && leavingTime < 1000)
+						_collisionExclusionList.Add(ball, (leavingTime * (double)1000) / (double)Simulation.TicksPerSecond + 1);
+					else if (leavingTime < 1000)
+						_collisionExclusionList.Add(ball, 1000 / Simulation.TicksPerSecond);
+					else
+						_collisionExclusionList.Add(ball,MaxLeavingTime);
 					#endregion
 				}
 			});
@@ -164,28 +162,22 @@ namespace ItSD_project_wpf
 		private EventHandler<Line> WallCollisionEvent;
 		public void RecalculateCollisions(IEnumerable<Line> walls)
 		{
+			if (disposed) throw new ObjectDisposedException(this.ToString());
 			lock (this)
 			{
-				if (disposed) throw new ObjectDisposedException(this.ToString());
 				foreach (var wall in walls)
 				{
 					if (this.IsColliding(wall))
 					{
 						WallCollisionEvent(this, wall);
 						_collisionExclusionList.Clear();
-						//necessity to be considered
-						#region Adding to exclusion list for a short time
-						//It's enough to add wall for just 1 tick, because the ball will keep its velocity relative to the wall but in the opposite direction. If there was no collision a tick ago, there will be no collision after 1 tick also.
-						//_collisionExclusionList.Add(wall, 1000 / Simulation.TicksPerSecond);
-						#endregion
 					}
 				}
 			}
 		}
 		public bool IsColliding(Line wall)
 		{
-			if (_collisionExclusionList.Contains(wall))
-				return false;
+			if (disposed) throw new ObjectDisposedException(this.ToString());
 			double distance = wall.Distance(this.Position);
 			if(distance <= this.Radius || Simulation.IsZero(distance-this.Radius))
 				return true;
@@ -204,46 +196,42 @@ namespace ItSD_project_wpf
 		public ElapsedEventHandler IntervalTimeElapsed;
 		private void Acceleration(object sender, EventArgs e)
 		{
+			if (disposed) throw new ObjectDisposedException(this.ToString());
 			lock (this)
 			{
-				if (disposed) throw new ObjectDisposedException(this.ToString());
 				Velocity = Velocity + Simulation.Gravity / Simulation.TicksPerSecond;
 			}
 		}
 		private void Displacement(object sender, EventArgs e)
 		{
+			if (disposed) throw new ObjectDisposedException(this.ToString());
 			lock (this)
 			{
-				if (disposed) throw new ObjectDisposedException(this.ToString());
 				Position = (Velocity.OriginatedAt(Position) / Simulation.TicksPerSecond).Ending;
 			}
 		}
 		#endregion
 
-		#region IDisposable
+		#region Dispose
 		private bool disposed;
-		~Ball()
-		{
-			Dispose(false);
-		}
-
-		protected void Dispose(bool disposing)
-		{
-			if (!disposed)
-			{
-				if (disposing)
-				{
-					_collisionExclusionList.Dispose();
-					_collisionExclusionList = null;
-				}
-				disposed = true;
-			}
-		}
-
 		public void Dispose()
 		{
 			Dispose(true);
 			GC.SuppressFinalize(this);
+		}
+		protected virtual void Dispose(bool disposing)
+		{
+			if (!disposed)
+			{
+				if (disposing)
+					if (_collisionExclusionList != null)
+						_collisionExclusionList.Dispose();
+				disposed = true;
+			}
+		}
+		~Ball()
+		{
+			Dispose(false);
 		}
 		#endregion
 	}

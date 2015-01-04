@@ -58,5 +58,10 @@ namespace ItSD_project_wpf
 			_simulation.AddBall(new Ball(new Point(250, 450), Vector.ZeroVector, 25, 1));
 			//_simulation.AddBall(new Ball(new Point(300, 450), Vector.ZeroVector, 25, 1));
 		}
+
+		private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+		{
+			_simulation.Dispose();
+		}
 	}
 }
