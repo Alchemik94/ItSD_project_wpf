@@ -121,16 +121,20 @@ namespace ItSD_project_wpf
 			var anotherAtOrigin = another.OriginatedAt(Point.Origin);
 			return thisAtOrigin.Ending.X * anotherAtOrigin.Ending.Y - thisAtOrigin.Ending.Y * anotherAtOrigin.Ending.X;
 		}
-		public double Length()
+		public double Length
 		{
-			var tmp = this.OriginatedAt(Point.Origin);
-			return Math.Sqrt(Math.Pow(tmp.Ending.X, 2) + Math.Pow(tmp.Ending.Y, 2));
+			get
+			{
+				var tmp = this.OriginatedAt(Point.Origin);
+				return Math.Sqrt(Math.Pow(tmp.Ending.X, 2) + Math.Pow(tmp.Ending.Y, 2));
+			}
+			private set { }
 		}
 		public Vector Normalized()
 		{
-			if (Simulation.IsZero(Length()))
+			if (Simulation.IsZero(Length))
 				throw new InvalidOperationException("Cannot normalize zero-length vector.");
-			return this * ( ((double)(1))/this.Length() );
+			return this * ( ((double)(1))/this.Length );
 		}
 		public Vector Projection(Line line)
 		{
@@ -138,10 +142,10 @@ namespace ItSD_project_wpf
 			double distanceFromEndToLine = line.Distance(originatedOnLine.Ending);
 			Vector projection = new Vector(line.First, line.Second);
 			projection = projection.Normalized();
-			double projectionLength = Math.Sqrt(Math.Pow(originatedOnLine.Length(), 2) - Math.Pow(distanceFromEndToLine, 2));
+			double projectionLength = Math.Sqrt(Math.Pow(originatedOnLine.Length, 2) - Math.Pow(distanceFromEndToLine, 2));
 			projection *= projectionLength;
 			projection = projection.OriginatedAt(line.First);
-			if (new Vector(projection.Ending, originatedOnLine.Ending).Length() < new Vector((projection * (-1)).Ending, originatedOnLine.Ending).Length())
+			if (new Vector(projection.Ending, originatedOnLine.Ending).Length < new Vector((projection * (-1)).Ending, originatedOnLine.Ending).Length)
 				return projection.OriginatedAt(this.Beginning);
 			else return (projection * (-1)).OriginatedAt(this.Beginning);
 		}

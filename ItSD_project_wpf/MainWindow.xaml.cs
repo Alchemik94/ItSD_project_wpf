@@ -61,7 +61,8 @@ namespace ItSD_project_wpf
 
 		private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
 		{
-			_simulation.Dispose();
+			if(_simulation!=null)
+				_simulation.Dispose();
 		}
 	}
 }

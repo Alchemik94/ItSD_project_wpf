@@ -10,8 +10,34 @@ namespace ItSD_project_wpf
 	public class Ball: IDisposable
 	{
 		#region Primary parameters
-		public Point Position { get; set; }
-		public Vector Velocity { get; set; }
+		private Point _position;
+		public Point Position
+		{
+			get
+			{
+				return _position;
+			}
+			set
+			{
+				if(double.IsNaN(value.X) || double.IsNaN(value.Y))
+					throw new ArgumentException();
+				_position = value;
+			}
+		}
+		private Vector _velocity;
+		public Vector Velocity
+		{
+			get
+			{
+				return _velocity;
+			}
+			set
+			{
+				if (double.IsNaN(value.Beginning.X) || double.IsNaN(value.Beginning.Y) || double.IsNaN(value.Ending.X) || double.IsNaN(value.Ending.Y))
+					throw new ArgumentException();
+				_velocity = value;
+			}
+		}
 		public double Radius { get; set; }
 		public double Mass { get; set; }
 		#endregion
@@ -27,8 +53,8 @@ namespace ItSD_project_wpf
 				return true;
 			if (Simulation.IsZero(first.Radius - second.Radius)==false)
 				return true;
-			if (first.Velocity != second.Velocity)
-				return true;
+			//if (first.Velocity != second.Velocity)
+			//	return true;
 			return false;
 		}
 		public override bool Equals(object obj)
@@ -57,6 +83,7 @@ namespace ItSD_project_wpf
 		private Ball()
 		{
 			_collisionExclusionList = new ExclusionList();
+			PartialVelocity = Vector.ZeroVector;
 			BallCollisionEvent += BallCollisionEventHandler;
 			WallCollisionEvent += WallCollisionEventHandler;
 			IntervalTimeElapsed += Displacement;
@@ -82,7 +109,22 @@ namespace ItSD_project_wpf
 		#region Ball collisions
 		private EventHandler<Ball> BallCollisionEvent;
 		#region Total velocity calculation variables
+		#region Partial velocity
 		private Vector _partialVelocity;
+		private Vector PartialVelocity
+		{
+			get
+			{
+				return _partialVelocity;
+			}
+			set
+			{
+				if (double.IsNaN(value.Beginning.X) || double.IsNaN(value.Beginning.Y) || double.IsNaN(value.Ending.X) || double.IsNaN(value.Ending.Y))
+					throw new ArgumentException();
+				_partialVelocity = value;
+			}
+		}
+		#endregion
 		private int _numberOfCollisions;
 		private object _collisionsLockobj = new object();
 		#endregion
@@ -92,7 +134,8 @@ namespace ItSD_project_wpf
 			lock (this)
 			{
 				#region Sum of partial velocities calculation
-				_partialVelocity = Vector.ZeroVector;
+				lock(PartialVelocity)
+					PartialVelocity = Vector.ZeroVector;
 				_numberOfCollisions = 0;
 				Parallel.ForEach(otherBalls, ball =>
 				{
@@ -113,7 +156,9 @@ namespace ItSD_project_wpf
 				#endregion
 				#region Change of velocity
 				if (_numberOfCollisions > 0)
-					Velocity = Velocity + _partialVelocity / (double)_numberOfCollisions;
+					lock(PartialVelocity)
+						lock(Velocity)
+							Velocity = Velocity + PartialVelocity / (double)_numberOfCollisions;
 				#endregion
 			}
 		}
@@ -122,18 +167,22 @@ namespace ItSD_project_wpf
 			if (disposed) throw new ObjectDisposedException(this.ToString());
 			if (_collisionExclusionList.Contains(other))
 				return false;
-			if (new Vector(other.Position, this.Position).Length() <= other.Radius + this.Radius)
+			if (new Vector(other.Position, this.Position).Length <= other.Radius + this.Radius)
 				return true;
 			return false;
 		}
 		private void BallCollisionEventHandler(object sender, Ball colliding)
 		{
-			Vector distanceVector = new Vector(colliding.Position, this.Position);
-			double constant = 2*colliding.Mass/(this.Mass+colliding.Mass);
-			constant *= (this.Velocity-colliding.Velocity).DotProduct(distanceVector);
-			constant /= distanceVector.DotProduct(distanceVector);
-			lock(_partialVelocity)
-				_partialVelocity = _partialVelocity - distanceVector * constant ;
+			lock(Velocity)
+				lock (Position)
+				{
+					Vector distanceVector = new Vector(colliding.Position, this.Position);
+					double c1 = 2 * colliding.Mass / (this.Mass + colliding.Mass);
+					double c2 = (this.Velocity - colliding.Velocity).DotProduct(distanceVector);
+					double c3 = distanceVector.DotProduct(distanceVector);
+					lock (PartialVelocity)
+						PartialVelocity = PartialVelocity - distanceVector * (c1 * c2 / c3);
+				}
 		}
 		public void AddExclusions(IEnumerable<Ball> ballsWithRecalculatedVelocities)
 		{
@@ -145,7 +194,7 @@ namespace ItSD_project_wpf
 					#region Time of leaving the collision area calculation
 					Vector distanceVector = new Vector(this.Position, ball.Position);
 					Vector relativeVelocity = (this.Velocity - ball.Velocity).Projection(new Line(this.Position, ball.Position));
-					double leavingTime = -((distanceVector.Length() - this.Radius - ball.Radius) / relativeVelocity.Length());
+					double leavingTime = -((distanceVector.Length - this.Radius - ball.Radius) / relativeVelocity.Length);
 					if (Simulation.IsZero(leavingTime) == false && leavingTime < 1000)
 						_collisionExclusionList.Add(ball, (leavingTime * (double)1000) / (double)Simulation.TicksPerSecond + 1);
 					else if (leavingTime < 1000)
@@ -178,6 +227,8 @@ namespace ItSD_project_wpf
 		public bool IsColliding(Line wall)
 		{
 			if (disposed) throw new ObjectDisposedException(this.ToString());
+			if (_collisionExclusionList.Contains(wall))
+				return false;
 			double distance = wall.Distance(this.Position);
 			if(distance <= this.Radius || Simulation.IsZero(distance-this.Radius))
 				return true;
@@ -185,8 +236,12 @@ namespace ItSD_project_wpf
 		}
 		private void WallCollisionEventHandler(object sender, Line wall)
 		{
-			Vector incomingPartial = Velocity - Velocity.Projection(wall);
-			Velocity = Velocity + incomingPartial * (-2);
+			lock (Velocity)
+			{
+				Vector incomingPartial = Velocity - Velocity.Projection(wall);
+				Velocity = Velocity + incomingPartial * (-2);
+			}
+			_collisionExclusionList.Add(wall,1000/Simulation.TicksPerSecond);
 		}
 		#endregion
 		
@@ -198,22 +253,23 @@ namespace ItSD_project_wpf
 		{
 			if (disposed) throw new ObjectDisposedException(this.ToString());
 			lock (this)
-			{
-				Velocity = Velocity + Simulation.Gravity / Simulation.TicksPerSecond;
-			}
+				lock (Velocity)
+				{
+					Velocity = Velocity + Simulation.Gravity / Simulation.TicksPerSecond;
+				}
 		}
 		private void Displacement(object sender, EventArgs e)
 		{
 			if (disposed) throw new ObjectDisposedException(this.ToString());
 			lock (this)
-			{
-				Position = (Velocity.OriginatedAt(Position) / Simulation.TicksPerSecond).Ending;
-			}
+				lock (Velocity)
+					lock(Position)
+						Position = (Velocity.OriginatedAt(Position) / Simulation.TicksPerSecond).Ending;
 		}
 		#endregion
 
 		#region Dispose
-		private bool disposed;
+		private volatile bool disposed;
 		public void Dispose()
 		{
 			Dispose(true);

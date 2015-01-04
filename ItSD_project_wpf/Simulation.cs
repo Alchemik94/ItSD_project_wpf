@@ -31,7 +31,7 @@ namespace ItSD_project_wpf
 					lock(_lockObj)
 					{
 						if (_gravity == null)
-							_gravity = new Vector(Point.Origin, new Point(0, -50));
+							_gravity = new Vector(Point.Origin, new Point(0, -100));
 					}
 				return _gravity;
 			}
@@ -54,10 +54,11 @@ namespace ItSD_project_wpf
 		#region Construction of Simulation
 		public Simulation(double degreesAngleOfSlipperySlope, Canvas canvas)
 		{
+			disposed = false;
 			_canvas = canvas;
 			InitializeBorders(degreesAngleOfSlipperySlope);
 			_displayers = new List<BallDisplayer>();
-			TicksPerSecond = 50;
+			TicksPerSecond = 100;
 			_balls = new List<Ball>();
 			_timer = new Timer((double)1 / (double)TicksPerSecond);
 			_timer.AutoReset = true;
@@ -66,6 +67,7 @@ namespace ItSD_project_wpf
 
 		private void InitializeBorders(double degreesAngleOfSlipperySlope)
 		{
+			if (disposed) throw new ObjectDisposedException(this.ToString());
 			_walls = new List<Line>();
 			_walls.Add(new Line(new Point(500, 0), new Point(500, 500)));
 			_walls.Add(new Line(new Point(500, 500), new Point(0, 500)));
@@ -99,6 +101,7 @@ namespace ItSD_project_wpf
 
 		private void CollisionsCheck(object sender, ElapsedEventArgs e)
 		{
+			if (disposed) return;
 			lock (_balls)
 			{
 				List<Ball> oldBalls = (from balls in _balls select new Ball(balls)).ToList();
@@ -106,6 +109,7 @@ namespace ItSD_project_wpf
 				{
 					lock (ball)
 					{
+						if (disposed) return;
 						ball.RecalculateCollisions(oldBalls);
 						ball.RecalculateCollisions(_walls);
 					}
@@ -114,6 +118,7 @@ namespace ItSD_project_wpf
 				{
 					lock (ball)
 					{
+						if (disposed) return;
 						ball.AddExclusions(_balls);
 					}
 				});
@@ -126,6 +131,7 @@ namespace ItSD_project_wpf
 
 		public void AddBall(Ball ball)
 		{
+			if (disposed) throw new ObjectDisposedException(this.ToString());
 			if (CollidesWithBalls(ball) || CollidesWithWalls(ball)) return;
 			bool toBeEnabled = false;
 			if (_timer.Enabled)
@@ -137,12 +143,13 @@ namespace ItSD_project_wpf
 			_balls.Add(ball);
 			_timer.Elapsed += ((object sender, ElapsedEventArgs e) =>
 			{
-				lock (ball)
-				{
-					ball.IntervalTimeElapsed(sender, e);
-				}
+				if (!disposed)
+					lock (ball)
+					{
+						ball.IntervalTimeElapsed(sender, e);
+					}
 			});
-			if(toBeEnabled)
+			if(toBeEnabled && !disposed)
 				_timer.Start();
 		}
 
@@ -181,6 +188,7 @@ namespace ItSD_project_wpf
 		#endregion
 
 		#region Dispose
+		private volatile bool disposed;
 		public void Dispose()
 		{
 			Dispose(true);
@@ -188,12 +196,20 @@ namespace ItSD_project_wpf
 		}
 		protected virtual void Dispose(bool disposing)
 		{
-			if (disposing)
-				Parallel.ForEach(_balls, ball =>
+			if (!disposed)
+			{
+				if (disposing)
 				{
-					if (ball != null)
-						ball.Dispose();
-				});
+					_timer.Stop();
+					_timer.Dispose();
+					Parallel.ForEach(_balls, ball =>
+					{
+						if (ball != null)
+							ball.Dispose();
+					});
+				}
+				disposed = true;
+			}
 		}
 		~Simulation()
 		{
