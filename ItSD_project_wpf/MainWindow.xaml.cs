@@ -34,18 +34,28 @@ namespace ItSD_project_wpf
 		private void MenuItem_Click_NewSimulation(object sender, RoutedEventArgs e)
 		{
 			if (_simulation != null)
+			{
 				_simulation.Stop();
-			_simulation = new Simulation(45, SimulationCanvas);
+				_simulation.Dispose();
+				_simulation = null;
+			}
+			var dialog = new AngleDialogBox();
+			dialog.Owner = this;
+			dialog.ShowDialog();
+			if(dialog.CollectedData)
+				_simulation = new Simulation(dialog.Angle, SimulationCanvas);
 		}
 
 		private void MenuItem_Click_Start(object sender, RoutedEventArgs e)
 		{
+			NewSimulationButton.IsEnabled = false;
 			_simulation.Start();
 		}
 
 		private void MenuItem_Click_Stop(object sender, RoutedEventArgs e)
 		{
 			_simulation.Stop();
+			NewSimulationButton.IsEnabled = true;
 		}
 
 		private void MenuItem_Click_AdjustSlipperySlope(object sender, RoutedEventArgs e)

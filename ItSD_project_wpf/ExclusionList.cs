@@ -13,10 +13,12 @@ namespace ItSD_project_wpf
 	{
 		private volatile ConcurrentHashSet<Ball> _balls;
 		private volatile ConcurrentHashSet<Line> _borders;
+		private Decimal _clears;
 		
 		public ExclusionList()
 		{
 			disposed = false;
+			_clears = 0;
 			_balls = new ConcurrentHashSet<Ball>();
 			_borders = new ConcurrentHashSet<Line>();
 		}
@@ -26,10 +28,11 @@ namespace ItSD_project_wpf
 			if (disposed) throw new ObjectDisposedException(this.ToString());
 			_balls.Add(ball);
 
+			Decimal tmp = _clears;
 			new System.Threading.Thread(() =>
 			{
 				System.Threading.Thread.Sleep((int)expirationTime);
-				if(!disposed)
+				if (!disposed && tmp == _clears)
 					_balls.Remove(ball);
 			}).Start();
 		}
@@ -39,10 +42,11 @@ namespace ItSD_project_wpf
 			if (disposed) throw new ObjectDisposedException(this.ToString());
 			_borders.Add(wall);
 
+			Decimal tmp = _clears;
 			new System.Threading.Thread(() =>
 			{
 				System.Threading.Thread.Sleep((int)expirationTime);
-				if (!disposed)
+				if (!disposed && tmp == _clears)
 					_borders.Remove(wall);
 			}).Start();
 		}
@@ -62,6 +66,7 @@ namespace ItSD_project_wpf
 		public void Clear()
 		{
 			if (disposed) throw new ObjectDisposedException(this.ToString());
+			++_clears;
 			_balls.Clear();
 			_borders.Clear();
 		}

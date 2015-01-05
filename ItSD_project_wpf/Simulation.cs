@@ -20,6 +20,7 @@ namespace ItSD_project_wpf
 			return false;
 		}
 		#endregion
+		#region Simulation constants
 		#region Gravity acceleration
 		private static object _lockObj = new object();
 		private static Vector _gravity;
@@ -41,10 +42,21 @@ namespace ItSD_project_wpf
 			}
 		}
 		#endregion
+		public static double AirFrictionFactor
+		{
+			get { return 0.001; }
+			private set { }
+		}
+		public static double WallCollisionLooseFactor
+		{
+			get { return 0.10; }
+			private set { }
+		}
+		#endregion
 
 		#region Primary data
 		public static int TicksPerSecond { get; set; }
-		private Timer _timer;
+		private volatile Timer _timer;
 		private List<Line> _walls;
 		private List<Ball> _balls;
 		private List<BallDisplayer> _displayers;
@@ -63,6 +75,12 @@ namespace ItSD_project_wpf
 			_timer = new Timer((double)1 / (double)TicksPerSecond);
 			_timer.AutoReset = true;
 			_timer.Elapsed += CollisionsCheck;
+			_timer.Elapsed += (object sender, ElapsedEventArgs e) =>
+			{
+				lock (_balls)
+					lock (handlerLockObj)
+						IntervalTimeElapsed(sender, e);
+			};
 		}
 
 		private void InitializeBorders(double degreesAngleOfSlipperySlope)
@@ -129,27 +147,29 @@ namespace ItSD_project_wpf
 			}
 		}
 
+		private ElapsedEventHandler IntervalTimeElapsed;
+		private object handlerLockObj = new Object();
 		public void AddBall(Ball ball)
 		{
 			if (disposed) throw new ObjectDisposedException(this.ToString());
-			if (CollidesWithBalls(ball) || CollidesWithWalls(ball)) return;
-			bool toBeEnabled = false;
-			if (_timer.Enabled)
-			{
+			bool toBeEnabled = _timer.Enabled;
+			if (toBeEnabled)
 				_timer.Stop();
-				toBeEnabled = true;
-			}
-			_displayers.Add(new BallDisplayer(_canvas, ball));
-			_balls.Add(ball);
-			_timer.Elapsed += ((object sender, ElapsedEventArgs e) =>
+			lock (_balls)
 			{
-				if (!disposed)
-					lock (ball)
+				if (CollidesWithBalls(ball) || CollidesWithWalls(ball)) return;
+				_displayers.Add(new BallDisplayer(_canvas, ball));
+				_balls.Add(ball);
+
+				lock (handlerLockObj)
+					IntervalTimeElapsed += ((object sender, ElapsedEventArgs e) =>
 					{
-						ball.IntervalTimeElapsed(sender, e);
-					}
-			});
-			if(toBeEnabled && !disposed)
+						if (!disposed)
+							lock (ball)
+								ball.IntervalTimeElapsed(sender, e);
+					});
+			}
+			if (toBeEnabled)
 				_timer.Start();
 		}
 
@@ -202,12 +222,18 @@ namespace ItSD_project_wpf
 				{
 					_timer.Stop();
 					_timer.Dispose();
+					System.Threading.Thread.Sleep(10);
 					Parallel.ForEach(_balls, ball =>
 					{
 						if (ball != null)
 							ball.Dispose();
 					});
 				}
+				Parallel.ForEach(_displayers, displayer =>
+				{
+					displayer.Clear();
+				});
+				_canvas.Children.Clear();
 				disposed = true;
 			}
 		}

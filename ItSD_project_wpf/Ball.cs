@@ -84,6 +84,7 @@ namespace ItSD_project_wpf
 		{
 			_collisionExclusionList = new ExclusionList();
 			PartialVelocity = Vector.ZeroVector;
+			CorrectiveVelocity = Vector.ZeroVector;
 			BallCollisionEvent += BallCollisionEventHandler;
 			WallCollisionEvent += WallCollisionEventHandler;
 			IntervalTimeElapsed += Displacement;
@@ -104,7 +105,7 @@ namespace ItSD_project_wpf
 
 		#region Collisions
 		private volatile ExclusionList _collisionExclusionList;
-		private const double MaxLeavingTime = 1000000;
+		private const double MaxLeavingTime = 100;
 		
 		#region Ball collisions
 		private EventHandler<Ball> BallCollisionEvent;
@@ -167,6 +168,8 @@ namespace ItSD_project_wpf
 			if (disposed) throw new ObjectDisposedException(this.ToString());
 			if (_collisionExclusionList.Contains(other))
 				return false;
+			if (this.Velocity == Vector.ZeroVector && other.Velocity == Vector.ZeroVector)
+				return false;
 			if (new Vector(other.Position, this.Position).Length <= other.Radius + this.Radius)
 				return true;
 			return false;
@@ -182,6 +185,10 @@ namespace ItSD_project_wpf
 					double c3 = distanceVector.DotProduct(distanceVector);
 					lock (PartialVelocity)
 						PartialVelocity = PartialVelocity - distanceVector * (c1 * c2 / c3);
+					//if(Simulation.IsZero(distanceVector.Length-this.Radius-colliding.Radius)==false)
+					//{
+					//	Position = (distanceVector.Normalized()*this.Radius).OriginatedAt((distanceVector/2).Ending).Ending;
+					//}
 				}
 		}
 		public void AddExclusions(IEnumerable<Ball> ballsWithRecalculatedVelocities)
@@ -195,15 +202,31 @@ namespace ItSD_project_wpf
 					Vector distanceVector = new Vector(this.Position, ball.Position);
 					Vector relativeVelocity = (this.Velocity - ball.Velocity).Projection(new Line(this.Position, ball.Position));
 					double leavingTime = -((distanceVector.Length - this.Radius - ball.Radius) / relativeVelocity.Length);
-					if (Simulation.IsZero(leavingTime) == false && leavingTime < 1000)
+					if (Simulation.IsZero(leavingTime) == false && leavingTime <= Simulation.TicksPerSecond)
 						_collisionExclusionList.Add(ball, (leavingTime * (double)1000) / (double)Simulation.TicksPerSecond + 1);
-					else if (leavingTime < 1000)
+					else if (leavingTime <= Simulation.TicksPerSecond)
 						_collisionExclusionList.Add(ball, 1000 / Simulation.TicksPerSecond);
 					else
-						_collisionExclusionList.Add(ball,MaxLeavingTime);
+						RepairVelocity(ball);
 					#endregion
 				}
 			});
+		}
+		private Vector CorrectiveVelocity;
+		private void RepairVelocity(Ball other)
+		{
+			lock (this)
+			{
+				Vector distVec;
+				lock(Position)
+					distVec = new Vector(other.Position, this.Position);
+				if (Simulation.IsZero(distVec.Length - this.Radius - other.Radius) == false)
+				{
+					var correction = distVec.Normalized() * (this.Radius + other.Radius - distVec.Length) * (double)Simulation.TicksPerSecond / 2;
+					lock (CorrectiveVelocity)
+						CorrectiveVelocity = CorrectiveVelocity + correction;
+				}
+			}
 		}
 		#endregion
 		
@@ -218,8 +241,8 @@ namespace ItSD_project_wpf
 				{
 					if (this.IsColliding(wall))
 					{
-						WallCollisionEvent(this, wall);
 						_collisionExclusionList.Clear();
+						WallCollisionEvent(this, wall);
 					}
 				}
 			}
@@ -239,9 +262,19 @@ namespace ItSD_project_wpf
 			lock (Velocity)
 			{
 				Vector incomingPartial = Velocity - Velocity.Projection(wall);
-				Velocity = Velocity + incomingPartial * (-2);
+				Velocity = Velocity + incomingPartial * (-2+Simulation.WallCollisionLooseFactor);
 			}
-			_collisionExclusionList.Add(wall,1000/Simulation.TicksPerSecond);
+			lock (Position)
+			{
+				if (Simulation.IsZero(wall.Distance(this.Position) - this.Radius) == false)
+				{
+					Vector tmp = new Vector(wall.First, this.Position);
+					Vector proj = tmp.Projection(wall);
+					Vector dist = new Vector(proj.Ending, tmp.Ending);
+					Position = (dist.Normalized() * (this.Radius)).OriginatedAt(dist.Beginning).Ending;
+				}
+			}
+			//_collisionExclusionList.Add(wall, (1 / (1 - Simulation.WallCollisionLooseFactor)) * 1000 / Simulation.TicksPerSecond);
 		}
 		#endregion
 		
@@ -254,9 +287,7 @@ namespace ItSD_project_wpf
 			if (disposed) throw new ObjectDisposedException(this.ToString());
 			lock (this)
 				lock (Velocity)
-				{
 					Velocity = Velocity + Simulation.Gravity / Simulation.TicksPerSecond;
-				}
 		}
 		private void Displacement(object sender, EventArgs e)
 		{
@@ -264,7 +295,11 @@ namespace ItSD_project_wpf
 			lock (this)
 				lock (Velocity)
 					lock(Position)
-						Position = (Velocity.OriginatedAt(Position) / Simulation.TicksPerSecond).Ending;
+						lock (CorrectiveVelocity)
+						{
+							Position = ((Velocity + CorrectiveVelocity).OriginatedAt(Position) / Simulation.TicksPerSecond).Ending;
+							CorrectiveVelocity = Vector.ZeroVector;
+						}
 		}
 		#endregion
 

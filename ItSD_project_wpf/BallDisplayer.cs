@@ -9,7 +9,7 @@ using System.Windows.Shapes;
 
 namespace ItSD_project_wpf
 {
-	class BallDisplayer: IDisposable
+	class BallDisplayer
 	{
 		#region Graphics initialization
 		private Canvas _displayCanvas;
@@ -66,11 +66,13 @@ namespace ItSD_project_wpf
 			}
 		}
 
-		//Doesn't dispose the ball!
-		public void Dispose()
+		public void Clear()
 		{
-			if(DisplayCanvas != null)
-				DisplayCanvas.Children.Remove(_ellipse);
+			if (DisplayCanvas != null)
+				DisplayCanvas.Dispatcher.Invoke(() =>
+				{
+					DisplayCanvas.Children.Remove(_ellipse);
+				});
 		}
 	}
 }

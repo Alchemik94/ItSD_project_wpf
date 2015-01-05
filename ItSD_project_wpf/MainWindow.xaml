@@ -5,25 +5,22 @@
     <Grid>
         <DockPanel>
             <Menu HorizontalAlignment="Left" VerticalAlignment="Top" IsMainMenu="True" DockPanel.Dock="Top">
-                <MenuItem Header="_Application">
-                    <MenuItem Header="_New simulation" Click="MenuItem_Click_NewSimulation">
+                <MenuItem Header="Application">
+                    <MenuItem Header="New simulation" Click="MenuItem_Click_NewSimulation" Name="NewSimulationButton">
                     
                     </MenuItem>
-                    <MenuItem Header="_Exit" Click="MenuItem_Click_Exit">
+                    <MenuItem Header="Exit" Click="MenuItem_Click_Exit">
 
                     </MenuItem>
                 </MenuItem>
-                <MenuItem Header="_Simulation">
-                    <MenuItem Header="_Add ball" Click="MenuItem_Click_AddBall">
+                <MenuItem Header="Simulation">
+                    <MenuItem Header="Add ball" Click="MenuItem_Click_AddBall">
 
                     </MenuItem>
-                    <MenuItem Header="_Adjust slippery slope" Click="MenuItem_Click_AdjustSlipperySlope">
+                    <MenuItem Header="Start" Click="MenuItem_Click_Start">
 
                     </MenuItem>
-                    <MenuItem Header="_Start" Click="MenuItem_Click_Start">
-
-                    </MenuItem>
-                    <MenuItem Header="_Stop" Click="MenuItem_Click_Stop">
+                    <MenuItem Header="Stop" Click="MenuItem_Click_Stop">
 
                     </MenuItem>
                 </MenuItem>
