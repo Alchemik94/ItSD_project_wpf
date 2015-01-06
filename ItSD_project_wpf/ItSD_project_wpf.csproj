@@ -57,6 +57,9 @@
       <DependentUpon>AngleDialogBox.xaml</DependentUpon>
     </Compile>
     <Compile Include="Ball.cs" />
+    <Compile Include="BallCreationDialogBox.xaml.cs">
+      <DependentUpon>BallCreationDialogBox.xaml</DependentUpon>
+    </Compile>
     <Compile Include="BallDisplayer.cs" />
     <Compile Include="ConcurrentHashSet.cs" />
     <Compile Include="ExclusionList.cs" />
@@ -64,6 +67,10 @@
     <Compile Include="Simulation.cs" />
     <Compile Include="Vector.cs" />
     <Page Include="AngleDialogBox.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Include="BallCreationDialogBox.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>

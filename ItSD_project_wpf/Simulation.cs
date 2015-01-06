@@ -54,7 +54,7 @@ namespace ItSD_project_wpf
 		}
 		public static double BallsRadius
 		{
-			get { return 25; }
+			get { return 20; }
 			private set { }
 		}
 		public static double BallsMass
@@ -116,7 +116,7 @@ namespace ItSD_project_wpf
 				_walls.Add(new Line(new Point(0, 250), new Point(250/Math.Tan(degreesAngleOfSlipperySlope*Math.PI/180),0)));
 				_walls.Add(new Line(new Point(250 / Math.Tan(degreesAngleOfSlipperySlope * Math.PI / 180), 0),new Point(500, 0)));
 			}
-			else if (degreesAngleOfSlipperySlope <= 45 && degreesAngleOfSlipperySlope >= 0)
+			else if (degreesAngleOfSlipperySlope <= 45 && degreesAngleOfSlipperySlope > 0)
 			{
 				_walls.Add(new Line(new Point(0, 500), new Point(0, 250*Math.Tan(degreesAngleOfSlipperySlope*Math.PI/180))));
 				_walls.Add(new Line(new Point(0, 250 * Math.Tan(degreesAngleOfSlipperySlope * Math.PI / 180)), new Point(250, 0)));
@@ -178,7 +178,7 @@ namespace ItSD_project_wpf
 				_timer.Stop();
 			lock (_balls)
 			{
-				//if (CollidesWithBalls(ball) || CollidesWithWalls(ball)) return;
+				if (CollidesWithBalls(ball) || CollidesWithWalls(ball)) return;
 				_displayers.Add(new BallDisplayer(_canvas, ball));
 				_balls.Add(ball);
 

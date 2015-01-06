@@ -222,7 +222,7 @@ namespace ItSD_project_wpf
 					distVec = new Vector(other.Position, this.Position);
 				if (Simulation.IsZero(distVec.Length - this.Radius - other.Radius) == false)
 				{
-					var correction = distVec.Normalized() * (this.Radius + other.Radius - distVec.Length) * (double)Simulation.TicksPerSecond / 2;
+					var correction = distVec.Normalized() * ((other.Mass)/(this.Mass+other.Mass)) * (this.Radius + other.Radius - distVec.Length) * (double)Simulation.TicksPerSecond;
 					lock (CorrectiveVelocity)
 						CorrectiveVelocity = CorrectiveVelocity + correction;
 				}

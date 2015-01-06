@@ -72,36 +72,49 @@ namespace ItSD_project_wpf
 		}
 		#endregion
 
+		#region Ball adding
 		private volatile bool CatchingNewBall;
 		private Ball _catchedBall;
 		private Ellipse _catchedBallVisualization;
 		private void MenuItem_Click_AddBall(object sender, RoutedEventArgs e)
 		{
-			CatchingNewBall = true;
-			_catchedBall = new Ball(new Point(250, 450), Vector.ZeroVector, Simulation.BallsRadius, Simulation.BallsMass);
+			var dialog = new BallCreationDialogBox();
+			dialog.Owner = this;
+			dialog.ShowDialog();
+			if (!dialog.CollectedData) return;
+
+			Vector velocity = new Vector(Point.Origin,new Point(Math.Cos(dialog.VelocityAngle*Math.PI/180F)*dialog.VelocityLength,Math.Sin(dialog.VelocityAngle*Math.PI/180F)*dialog.VelocityLength));
+			double mass = dialog.Mass;
+
+			_catchedBall = new Ball(new Point(250, 450), velocity, Simulation.BallsRadius*mass, Simulation.BallsMass*mass);
 			_catchedBallVisualization = new Ellipse();
 			_catchedBallVisualization.Fill = Brushes.Red;
 			_catchedBallVisualization.Stroke = Brushes.Red;
 			_catchedBallVisualization.StrokeThickness = 0;
-			_catchedBallVisualization.Width = _catchedBallVisualization.Height = 2 * Simulation.BallsRadius;
+			_catchedBallVisualization.Width = _catchedBallVisualization.Height = 2 * _catchedBall.Radius;
 			SimulationCanvas.Children.Add(_catchedBallVisualization);
 			Canvas.SetBottom(_catchedBallVisualization, _catchedBall.Position.Y - _catchedBall.Radius);
 			Canvas.SetLeft(_catchedBallVisualization, _catchedBall.Position.X - _catchedBall.Radius);
+			
+			CatchingNewBall = true;
 
 			SimulationCanvas.CaptureMouse();
-			//while (CatchingNewBall) System.Threading.Thread.Yield();
-			//_simulation.AddBall(new Ball(new Point(250, 450), Vector.ZeroVector, Simulation.BallsRadius, Simulation.BallsMass));
 		}
 
 		private void SimulationCanvas_MouseDown(object sender, MouseButtonEventArgs e)
 		{
 			if (CatchingNewBall)
 			{
-				SimulationCanvas.Children.Remove(_catchedBallVisualization);
-				_catchedBallVisualization = null;
-				_simulation.AddBall(_catchedBall);
-				CatchingNewBall = false;
-				SimulationCanvas.ReleaseMouseCapture();
+				lock (_catchedBall)
+				{
+					if (!CatchingNewBall) return;
+					CatchingNewBall = false;
+					SimulationCanvas.Children.Remove(_catchedBallVisualization);
+					_catchedBallVisualization = null;
+					_simulation.AddBall(_catchedBall);
+					_catchedBall = null;
+					SimulationCanvas.ReleaseMouseCapture();
+				}
 			}
 		}
 
@@ -111,11 +124,11 @@ namespace ItSD_project_wpf
 			{
 				lock (_catchedBall)
 				{
-					Point old = _catchedBall.Position;
+					Point old = new Point(_catchedBall.Position);
 					_catchedBall.Position.X = e.GetPosition(SimulationCanvas).X;
 					_catchedBall.Position.Y = SimulationCanvas.Height - e.GetPosition(SimulationCanvas).Y;
 					if (_simulation.CollidesWithBalls(_catchedBall) || _simulation.CollidesWithWalls(_catchedBall))
-						_catchedBall.Position = old;
+						_catchedBall.Position = new Point(old);
 					else
 					{
 						Canvas.SetBottom(_catchedBallVisualization, _catchedBall.Position.Y - _catchedBall.Radius);
@@ -133,5 +146,6 @@ namespace ItSD_project_wpf
 			_catchedBall = null;
 			ReleaseMouseCapture();
 		}
+		#endregion
 	}
 }
