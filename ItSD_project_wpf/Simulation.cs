@@ -49,7 +49,27 @@ namespace ItSD_project_wpf
 		}
 		public static double WallCollisionLooseFactor
 		{
-			get { return 0.10; }
+			get { return 0.01; }
+			private set { }
+		}
+		public static double BallsRadius
+		{
+			get { return 25; }
+			private set { }
+		}
+		public static double BallsMass
+		{
+			get { return 1;}
+			private set { }
+		}
+		public static double Width
+		{
+			get { return 500; }
+			private set { }
+		}
+		public static double Height
+		{
+			get { return 500; }
 			private set { }
 		}
 		#endregion
@@ -79,7 +99,8 @@ namespace ItSD_project_wpf
 			{
 				lock (_balls)
 					lock (handlerLockObj)
-						IntervalTimeElapsed(sender, e);
+						if(IntervalTimeElapsed!=null)
+							IntervalTimeElapsed(sender, e);
 			};
 		}
 
@@ -157,7 +178,7 @@ namespace ItSD_project_wpf
 				_timer.Stop();
 			lock (_balls)
 			{
-				if (CollidesWithBalls(ball) || CollidesWithWalls(ball)) return;
+				//if (CollidesWithBalls(ball) || CollidesWithWalls(ball)) return;
 				_displayers.Add(new BallDisplayer(_canvas, ball));
 				_balls.Add(ball);
 
@@ -222,24 +243,35 @@ namespace ItSD_project_wpf
 				{
 					_timer.Stop();
 					_timer.Dispose();
-					System.Threading.Thread.Sleep(10);
-					Parallel.ForEach(_balls, ball =>
-					{
-						if (ball != null)
-							ball.Dispose();
-					});
+					lock(_balls)
+						Parallel.ForEach(_balls, ball =>
+						{
+							if (ball != null)
+								lock(ball)
+									ball.Dispose();
+						});
 				}
 				Parallel.ForEach(_displayers, displayer =>
 				{
 					displayer.Clear();
 				});
-				_canvas.Children.Clear();
+				_canvas.Dispatcher.Invoke(() =>
+				{
+					_canvas.Children.Clear();
+				});
 				disposed = true;
 			}
 		}
 		~Simulation()
 		{
-			Dispose(false);
+			try
+			{
+				Dispose(false);
+			}
+			catch(TaskCanceledException ex)
+			{
+				//just ending, no problem
+			}
 		}
 		#endregion
 	}

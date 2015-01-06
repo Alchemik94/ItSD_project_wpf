@@ -1,7 +1,7 @@
 ﻿<Window x:Class="ItSD_project_wpf.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Simulation" Height="558" Width="517" ResizeMode="NoResize" Closing="Window_Closing">
+        Title="Simulation" Height="558" Width="517" ResizeMode="NoResize">
     <Grid>
         <DockPanel>
             <Menu HorizontalAlignment="Left" VerticalAlignment="Top" IsMainMenu="True" DockPanel.Dock="Top">
@@ -13,19 +13,19 @@
 
                     </MenuItem>
                 </MenuItem>
-                <MenuItem Header="Simulation">
-                    <MenuItem Header="Add ball" Click="MenuItem_Click_AddBall">
+                <MenuItem Header="Simulation" IsEnabled="False" Name="SimulationCategory">
+                    <MenuItem Header="Add ball" Click="MenuItem_Click_AddBall" Name="AddBallButton" IsEnabled="False">
 
                     </MenuItem>
-                    <MenuItem Header="Start" Click="MenuItem_Click_Start">
+                    <MenuItem Header="Start" Click="MenuItem_Click_Start" Name="StartButton" IsEnabled="False">
 
                     </MenuItem>
-                    <MenuItem Header="Stop" Click="MenuItem_Click_Stop">
+                    <MenuItem Header="Stop" Click="MenuItem_Click_Stop" Name="StopButton" IsEnabled="False">
 
                     </MenuItem>
                 </MenuItem>
             </Menu>
-            <Canvas Height="501" VerticalAlignment="Top" Width="501" Name="SimulationCanvas"/>
+            <Canvas Height="501" VerticalAlignment="Top" Width="501" Name="SimulationCanvas" MouseDown="SimulationCanvas_MouseDown" MouseMove="SimulationCanvas_MouseMove" LostMouseCapture="SimulationCanvas_LostMouseCapture"/>
 
         </DockPanel>
 

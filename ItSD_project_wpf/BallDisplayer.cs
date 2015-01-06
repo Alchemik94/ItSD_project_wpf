@@ -71,7 +71,14 @@ namespace ItSD_project_wpf
 			if (DisplayCanvas != null)
 				DisplayCanvas.Dispatcher.Invoke(() =>
 				{
-					DisplayCanvas.Children.Remove(_ellipse);
+					try
+					{
+						DisplayCanvas.Children.Remove(_ellipse);
+					}
+					catch(TaskCanceledException ex)
+					{
+						//everything ok, just ending
+					}
 				});
 		}
 	}
