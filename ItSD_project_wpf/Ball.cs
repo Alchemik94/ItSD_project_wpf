@@ -11,6 +11,7 @@ namespace ItSD_project_wpf
 	{
 		#region Primary parameters
 		private Point _position;
+		//Current point position on the XY plane
 		public Point Position
 		{
 			get
@@ -25,6 +26,7 @@ namespace ItSD_project_wpf
 			}
 		}
 		private Vector _velocity;
+		//Current point velocity
 		public Vector Velocity
 		{
 			get
@@ -129,6 +131,7 @@ namespace ItSD_project_wpf
 		private int _numberOfCollisions;
 		private object _collisionsLockobj = new object();
 		#endregion
+		//Recalculates velocity after collisions with whole set of balls
 		public void RecalculateCollisions(IEnumerable<Ball> otherBalls)
 		{
 			if (disposed) throw new ObjectDisposedException(this.ToString());
@@ -163,6 +166,7 @@ namespace ItSD_project_wpf
 				#endregion
 			}
 		}
+		//Checks wheter two balls are colliding
 		public bool IsColliding(Ball other)
 		{
 			if (disposed) throw new ObjectDisposedException(this.ToString());
@@ -174,6 +178,7 @@ namespace ItSD_project_wpf
 				return true;
 			return false;
 		}
+		//Considers single collision
 		private void BallCollisionEventHandler(object sender, Ball colliding)
 		{
 			lock(Velocity)
@@ -191,6 +196,7 @@ namespace ItSD_project_wpf
 					//}
 				}
 		}
+		//Adds balls to the exclusion list
 		public void AddExclusions(IEnumerable<Ball> ballsWithRecalculatedVelocities)
 		{
 			if (disposed) throw new ObjectDisposedException(this.ToString());
@@ -232,6 +238,7 @@ namespace ItSD_project_wpf
 		
 		#region Wall collisions
 		private EventHandler<Line> WallCollisionEvent;
+		//Finds velocity if collides with any of the walls
 		public void RecalculateCollisions(IEnumerable<Line> walls)
 		{
 			if (disposed) throw new ObjectDisposedException(this.ToString());
@@ -247,6 +254,7 @@ namespace ItSD_project_wpf
 				}
 			}
 		}
+		//Checks whether the ball is colliding with the walls
 		public bool IsColliding(Line wall)
 		{
 			if (disposed) throw new ObjectDisposedException(this.ToString());
@@ -257,6 +265,7 @@ namespace ItSD_project_wpf
 				return true;
 			return false;
 		}
+		//Recalculate velocity after single wall collision
 		private void WallCollisionEventHandler(object sender, Line wall)
 		{
 			lock (Velocity)
